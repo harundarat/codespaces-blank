@@ -1,24 +1,24 @@
-import Head from "next/head";
 import {
-  Container,
   Heading,
   Table,
   Spinner,
   Fieldset,
   Input,
-  Stack,
   VStack,
   Button,
-  Text,
 } from "@chakra-ui/react";
 import { Field } from "@/components/ui/field";
+import { Toaster, toaster } from "@/components/ui/toaster";
 import { useFormik } from "formik";
 import { useFetchProducts } from "@/features/product/useFetchProducts";
-import { useMutation } from "@tanstack/react-query";
-import { axiosInstance } from "@/lib/axios";
+import { useCreateProduct } from "@/features/product/useCreateProduct";
 
 export default function Home() {
-  const { data: products, isLoading } = useFetchProducts();
+  const {
+    data: products,
+    isLoading: fetchProductsIsLoading,
+    refetch: refetchProducts,
+  } = useFetchProducts();
 
   const formik = useFormik({
     initialValues: {
@@ -37,10 +37,22 @@ export default function Home() {
     },
   });
 
-  const { mutate } = useMutation({
-    mutationFn: async (body) => {
-      const productsResponse = await axiosInstance.post("/products", body);
-      return productsResponse;
+  const { mutate, isLoading: createProductsIsLoading } = useCreateProduct({
+    onSuccess: async () => {
+      await refetchProducts();
+
+      toaster.create({
+        title: "Data added successfully!",
+        description: `${name} successfully added!`,
+        type: "success",
+      });
+    },
+    onError: () => {
+      toaster.create({
+        title: "Failed to add data!",
+        description: "Something was wrong. Please try again later!",
+        type: "error",
+      });
     },
   });
 
@@ -49,7 +61,7 @@ export default function Home() {
   };
 
   const renderProducts = () => {
-    return products?.map((product) => {
+    return products?.data?.map((product) => {
       return (
         <Table.Row key={product.id.toString()}>
           <Table.Cell>{product.id}</Table.Cell>
@@ -65,8 +77,9 @@ export default function Home() {
   return (
     <>
       <main>
+        <Toaster />
         <Heading>Hello World</Heading>
-        {isLoading ? <Spinner /> : <></>}
+        {fetchProductsIsLoading ? <Spinner /> : <></>}
         <Table.Root>
           <Table.Header>
             <Table.Row>
@@ -127,7 +140,11 @@ export default function Home() {
                     value={formik.values.image}
                   />
                 </Field>
-                <Button type="submit">Submit</Button>
+                {createProductsIsLoading ? (
+                  <Spinner />
+                ) : (
+                  <Button type="submit">Submit</Button>
+                )}
               </VStack>
             </Fieldset.Content>
           </Fieldset.Root>
